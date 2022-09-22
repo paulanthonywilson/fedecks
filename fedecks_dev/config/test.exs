@@ -7,9 +7,6 @@ config :fedecks_dev, FedecksDevWeb.Endpoint,
   secret_key_base: "O1wT1P3coyJ4BD9dNIXj8XBZaPifhjd/CGT1JhYcoS5zJu3RGuYQ+JCmRXEsgL/V",
   server: false
 
-# In test we don't send emails.
-config :fedecks_dev, FedecksDev.Mailer, adapter: Swoosh.Adapters.Test
-
 # Print only warnings and errors during test
 config :logger, level: :warn
 

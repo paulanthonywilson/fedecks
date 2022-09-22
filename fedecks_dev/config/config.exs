@@ -23,9 +23,6 @@ config :fedecks_dev, FedecksDevWeb.Endpoint,
 # at the `config/runtime.exs`.
 config :fedecks_dev, FedecksDev.Mailer, adapter: Swoosh.Adapters.Local
 
-# Swoosh API client is needed for adapters other than SMTP.
-config :swoosh, :api_client, false
-
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.14.29",
