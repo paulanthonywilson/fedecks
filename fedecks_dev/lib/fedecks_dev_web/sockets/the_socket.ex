@@ -19,9 +19,9 @@ defmodule FedecksDevWeb.TheSocket do
     %{id: Task, start: {Task, :start_link, [fn -> :ok end]}, restart: :transient}
   end
 
-  def connect(%{params: %{"connection_token" => token}}) do
+  def connect(%{params: %{"connection_token" => token, "identifier" => identifier}}) do
     case Token.from_token(token, @token_secrets) do
-      {:ok, identifier} ->
+      {:ok, ^identifier} ->
         {:ok, %{identifier: identifier}}
 
       _ ->
@@ -45,6 +45,7 @@ defmodule FedecksDevWeb.TheSocket do
   end
 
   def handle_info(:refresh_token, %{identifier: identifier} = state) do
+    Process.send_after(self(), :refresh_token, @token_refresh_millis)
     token = Token.to_token(identifier, @token_expiry, @token_secrets)
     {:push, {:text, "token:" <> token}, state}
   end
