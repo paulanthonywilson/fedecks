@@ -3,7 +3,7 @@ defmodule FedecksDevWeb.TheSocket do
   Socket side of all of this
   """
 
-  alias Fedecks.Token
+  alias FedecksServer.Token
 
   @behaviour Phoenix.Socket.Transport
 

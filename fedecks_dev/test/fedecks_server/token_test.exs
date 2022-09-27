@@ -1,6 +1,6 @@
-defmodule Fedecks.TokenTest do
+defmodule FedecksServer.TokenTest do
   use ExUnit.Case
-  alias Fedecks.Token
+  alias FedecksServer.Token
 
   @secret "C28zaqpZ0sN6tTF17TIrrOZa53Otp4Q9A+yKagZNJFcn2HB3REk+e+UPWe1hG5Ut"
 

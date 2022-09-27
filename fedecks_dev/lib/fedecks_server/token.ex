@@ -1,4 +1,4 @@
-defmodule Fedecks.Token do
+defmodule FedecksServer.Token do
   @moduledoc """
   Token used by clients that have already authorised.
   """
