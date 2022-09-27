@@ -41,7 +41,9 @@ defmodule FedecksDev.MixProject do
       {:gettext, "~> 0.18"},
       {:jason, "~> 1.2"},
       {:plug_cowboy, "~> 2.5"},
-      {:websocket_client, git: "git@github.com:vtm9/websocket_client.git"}
+
+      {:websocket_client, git: "git@github.com:vtm9/websocket_client.git"},
+      {:credo, "~> 1.6", only: :dev}
     ]
   end
 

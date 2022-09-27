@@ -44,12 +44,16 @@ defmodule FedecksDevWeb.TheSocket do
     {:ok, state}
   end
 
+  def authorise?(%{"username" => "marvin", "password" => "paranoid-android"}), do: true
+  def authorise?(_), do: false
+
   def handle_info(:refresh_token, %{identifier: identifier} = state) do
     Process.send_after(self(), :refresh_token, @token_refresh_millis)
     token = Token.to_token(identifier, @token_expiry, @token_secrets)
     {:push, {:text, "token:" <> token}, state}
   end
 
+  # credo:disable-for-lines:100
   def handle_info(message, state) do
     IO.inspect(message, label: :handle_info)
     {:push, {:text, "handle_info: #{inspect(message)}"}, state}
@@ -64,7 +68,4 @@ defmodule FedecksDevWeb.TheSocket do
     IO.inspect(reason, label: :terminate)
     :ok
   end
-
-  def authorise?(%{"username" => "marvin", "password" => "paranoid-android"}), do: true
-  def authorise?(_), do: false
 end

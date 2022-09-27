@@ -1,3 +1,4 @@
+# credo:disable-for-this-file
 defmodule FedecksDev.TheWebsocketClient do
   @moduledoc """
   For extracting / testing the Fedecks client

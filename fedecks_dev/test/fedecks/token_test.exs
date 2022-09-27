@@ -8,7 +8,7 @@ defmodule Fedecks.TokenTest do
   @secret_salt {@secret, @salt}
 
   test "from and to token" do
-    token = Token.to_token("an identifier", 60, @secret_salt) |> IO.inspect()
+    token = Token.to_token("an identifier", 60, @secret_salt)
     assert {:ok, "an identifier"} = Token.from_token(token, @secret_salt)
   end
 
