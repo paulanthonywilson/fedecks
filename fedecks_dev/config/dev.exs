@@ -53,3 +53,7 @@ config :phoenix, :stacktrace_depth, 20
 
 # Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime
+
+config :fedecks_dev, FedecksDevWeb.TheSocket,
+  salt: "EYrMp+4ayBQ3HOhnyjDyAd4Y5V6Lh+/Cpb/Ut/ZKQEsmjdHkoDYJUdEPh5TN3BUr",
+  secret: "ES/AU9Cc5lUdsRJAE3qXT+SOHGb5BRDAFsxcE/4ttmT/FttL6sfQkdFey0yoCxlm"
