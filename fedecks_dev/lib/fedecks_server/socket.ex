@@ -12,13 +12,14 @@ defmodule FedecksServer.Socket do
   @type opcode :: :binary | :text
 
   @doc """
-  Should the supplied x_headers (headers prefixed with "x-") authenticate the connection request?
+  Use the fedecks information supplied at login authenticate the user? Only called if there
+  is no `fedecks-token` supplied, so is likely to be an initial registration, a re-registration
+  (perhaps to associate the device with a new user), or a re-registration due to an expired token which
+  can occur if a device has not connected for a few days.
 
-  Note that:-
-  * For (the default) username and password authentication then the headers will be "x-fedecks-username" and
-  "x-fedecks-password".
-  * Headers are supplied as a map, for your convenience.
-  * Header keys have been converted to all lowercase (by Phoenix), also for your convenience.
+  Will be a map with string keys. The key "fedecks-device-id" will present which you can use
+  to associate the device with a user (should you wish).
+
   """
   @callback authenticate?(map()) :: boolean()
 
@@ -71,39 +72,43 @@ defmodule FedecksServer.Socket do
       end
 
       @impl Phoenix.Socket.Transport
-      def connect(%{connect_info: %{x_headers: x_headers}}) do
-        case List.keyfind(x_headers, "x-fedecks-device-id", 0) do
-          {_, device_id} -> authenticate_with_identity_or_token(device_id, x_headers)
+      def connect(%{connect_info: %{x_headers: x_headers}} = h) do
+        case List.keyfind(x_headers, "x-fedecks-auth", 0) do
+          {_, encoded_auth} -> authenticate_encoded(encoded_auth)
           nil -> :error
         end
       end
 
       def connect(_), do: :error
 
-      defp authenticate_with_identity_or_token(device_id, x_headers) do
-        case List.keyfind(x_headers, "x-fedecks-token", 0) do
-          {_, token} -> authenticate_with_token(device_id, token)
-          nil -> authenticate_with_identity(device_id, x_headers)
+      defp authenticate_encoded(encoded_auth) when byte_size(encoded_auth) < 1_024 do
+        case Base.decode64(encoded_auth) do
+          {:ok, term} -> term |> :erlang.binary_to_term([:safe]) |> authenticate_decoded()
+          :error -> :error
         end
+      rescue
+        ArgumentError ->
+          :error
       end
 
-      defp authenticate_with_token(device_id, token) do
+      defp authenticate_encoded(_), do: :error
+
+      defp authenticate_decoded(%{"fedecks-device-id" => device_id, "fedecks-token" => token}) do
         case Token.from_token(token, token_secrets()) do
           {:ok, ^device_id} -> {:ok, %{identifier: device_id}}
           _ -> :error
         end
       end
 
-      defp authenticate_with_identity(device_id, x_headers) do
-        x_headers
-        |> Map.new()
-        |> authenticate?()
-        |> if do
+      defp authenticate_decoded(%{"fedecks-device-id" => device_id} = auth) do
+        if authenticate?(auth) do
           {:ok, %{identifier: device_id}}
         else
           :error
         end
       end
+
+      defp authenticate_decoded(_), do: :error
 
       @impl Phoenix.Socket.Transport
       def init(%{identifier: identifier} = state) do

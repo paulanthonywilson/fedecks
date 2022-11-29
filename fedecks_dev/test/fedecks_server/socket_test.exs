@@ -31,8 +31,8 @@ defmodule FedecksServer.SocketTest do
 
     @impl Socket
     def authenticate?(%{
-          "x-fedecks-username" => "marvin",
-          "x-fedecks-password" => "paranoid-android"
+          "username" => "marvin",
+          "password" => "paranoid-android"
         }),
         do: true
 
@@ -54,8 +54,15 @@ defmodule FedecksServer.SocketTest do
                Harness.handle_info(:refresh_token, state)
 
       assert {:ok, ^state} =
-               [{"x-fedecks-token", token}, {"x-fedecks-device-id", "nerves-987x"}]
-               |> x_headers()
+               %{"fedecks-token" => token, "fedecks-device-id" => "nerves-987x"}
+               |> add_auth_to_headers
+               |> Harness.connect()
+    end
+
+    test "does not reconnect if token is invalid" do
+      assert :error ==
+               %{"fedecks-token" => "hi", "fedecks-device-id" => "nerves-987x"}
+               |> add_auth_to_headers
                |> Harness.connect()
     end
 
@@ -64,18 +71,99 @@ defmodule FedecksServer.SocketTest do
         Harness.handle_info(:refresh_token, %{identifier: "nerves-111a"})
 
       assert :error =
-               [{"x-fedecks-token", token}, {"x-fedecks-device-id", "sciatica-987x"}]
-               |> x_headers()
-               |> Harness.connect()
-    end
-
-    test "does not reconnect if token is invalid" do
-      assert :error ==
-               [{"x-fedecks-token", "hi"}, {"x-fedecks-device-id", "nerves-987x"}]
-               |> x_headers()
+               %{"fedecks-token" => token, "fedecks-device-id" => "sciatica-987x"}
+               |> add_auth_to_headers
                |> Harness.connect()
     end
   end
+
+  describe "connecting with authorisation" do
+    test "when valid returns the identifier" do
+      assert {:ok, %{identifier: "nerves-543x"}} =
+               %{
+                 "username" => "marvin",
+                 "password" => "paranoid-android",
+                 "fedecks-device-id" => "nerves-543x"
+               }
+               |> add_auth_to_headers
+               |> Harness.connect()
+    end
+
+    test "when incorrect, does not connect" do
+      assert :error ==
+               %{
+                 "username" => "marvin@gpp.sirius",
+                 "password" => "plastic-pal",
+                 "fedecks-device-id" => "nerves-543x"
+               }
+               |> add_auth_to_headers
+               |> Harness.connect()
+    end
+
+    test "fails if identifier missing" do
+      assert :error ==
+               %{"username" => "marvin", "password" => "paranoid-android"}
+               |> add_auth_to_headers
+               |> Harness.connect()
+    end
+  end
+
+  describe "fails when fedecks auth header is invalid because" do
+    test "it is missing" do
+      assert :error == Harness.connect(%{connect_info: %{x_headers: []}})
+    end
+
+    test "it is not base 64 encoded" do
+      assert :error ==
+               Harness.connect(%{connect_info: %{x_headers: [{"x-fedecks-auth", "1"}]}})
+    end
+
+    test "it does not encode to a binary term" do
+      assert :error ==
+               Harness.connect(%{
+                 connect_info: %{x_headers: [{"x-fedecks-auth", Base.encode64("nope")}]}
+               })
+    end
+
+    test "it does not encode to a map" do
+      val = "hello matey" |> :erlang.term_to_binary() |> Base.encode64()
+
+      assert :error ==
+               Harness.connect(%{
+                 connect_info: %{x_headers: [{"x-fedecks-auth", val}]}
+               })
+    end
+
+    test "it encodes an unsafe term" do
+      # Base 64 binary term for
+      # iex(28)> h
+      # %{
+      #   "fedecks-device-id" => "nerves-543x",
+      #   "other" => :not_existing_atom,
+      #   "password" => "paranoid-android",
+      #   "username" => "marvin"
+      # }
+      val =
+        "g3QAAAAEbQAAABFmZWRlY2tzLWRldmljZS1pZG0AAAALbmVydmVzLTU0M3htAAAABW90aGVyZAARbm90X2V4aXN0aW5nX2F0b21tAAAACHBhc3N3b3JkbQAAABBwYXJhbm9pZC1hbmRyb2lkbQAAAAh1c2VybmFtZW0AAAAGbWFydmlu"
+
+      assert :error == Harness.connect(%{connect_info: %{x_headers: [{"x-fedecks-auth", val}]}})
+    end
+
+    test "headers over 1k (ish) rejected" do
+      device_id = String.pad_leading("123b", 1_000, "0")
+
+      assert :error ==
+               %{
+                 "username" => "marvin",
+                 "password" => "paranoid-android",
+                 "fedecks-device-id" => device_id
+               }
+               |> add_auth_to_headers()
+               |> Harness.connect()
+    end
+  end
+
+  # too long?
 
   test "refreshing a token schedules a new refresh" do
     {:push, _, _} = Harness.handle_info(:refresh_token, %{identifier: "x"})
@@ -104,40 +192,6 @@ defmodule FedecksServer.SocketTest do
     test "timings have defaults" do
       assert BareHarness.token_refresh_millis() == 10_800_000
       assert BareHarness.token_expiry_secs() == 2_419_200
-    end
-  end
-
-  describe "connecting with authorisation" do
-    test "when valid returns the identifier" do
-      assert {:ok, %{identifier: "nerves-543x"}} =
-               [
-                 {"x-fedecks-username", "marvin"},
-                 {"x-fedecks-password", "paranoid-android"},
-                 {"x-fedecks-device-id", "nerves-543x"}
-               ]
-               |> x_headers()
-               |> Harness.connect()
-    end
-
-    test "when incorrect, does not connect" do
-      assert :error ==
-               [
-                 {"x-fedecks-username", "marvin@gpp.sirius"},
-                 {"x-fedecks-password", "plastic-pal"},
-                 {"x-fedecks-device-id", "nerves-543x"}
-               ]
-               |> x_headers()
-               |> Harness.connect()
-    end
-
-    test "fails if identifier missing" do
-      assert :error ==
-               [
-                 {"x-fedecks-username", "marvin"},
-                 {"x-fedecks-password", "paranoid-android"}
-               ]
-               |> x_headers()
-               |> Harness.connect()
     end
   end
 
@@ -193,5 +247,8 @@ defmodule FedecksServer.SocketTest do
     end
   end
 
-  defp x_headers(headers), do: %{connect_info: %{x_headers: headers}}
+  defp add_auth_to_headers(headers) do
+    auth = headers |> :erlang.term_to_binary() |> Base.encode64()
+    %{connect_info: %{x_headers: [{"x-fedecks-auth", auth}]}}
+  end
 end
