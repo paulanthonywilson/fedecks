@@ -17,7 +17,7 @@ defmodule FedecksDevWeb.Endpoint do
     longpoll: false
 
   socket "/fedecks/authorise/:identifier/:username/:password", FedecksDevWeb.TheSocket,
-    websocket: true,
+    websocket: [connect_info: [:x_headers]],
     longpoll: false
 
   # Serve at "/" the static files from "priv/static" directory.

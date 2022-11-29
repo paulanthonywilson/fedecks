@@ -12,7 +12,13 @@ defmodule FedecksServer.Socket do
   @type opcode :: :binary | :text
 
   @doc """
-  Should the supplied params authenticate with the params supplied?
+  Should the supplied x_headers (headers prefixed with "x-") authenticate the connection request?
+
+  Note that:-
+  * For (the default) username and password authentication then the headers will be "x-fedecks-username" and
+  "x-fedecks-password".
+  * Headers are supplied as a map, for your convenience.
+  * Header keys have been converted to all lowercase (by Phoenix), also for your convenience.
   """
   @callback authenticate?(map()) :: boolean()
 
@@ -65,25 +71,39 @@ defmodule FedecksServer.Socket do
       end
 
       @impl Phoenix.Socket.Transport
-      def connect(%{params: %{"connection_token" => token, "identifier" => identifier}}) do
-        case Token.from_token(token, token_secrets()) do
-          {:ok, ^identifier} ->
-            {:ok, %{identifier: identifier}}
-
-          _ ->
-            :error
-        end
-      end
-
-      def connect(%{params: %{"identifier" => identifier} = params}) do
-        if authenticate?(params) do
-          {:ok, %{identifier: identifier}}
-        else
-          :error
+      def connect(%{connect_info: %{x_headers: x_headers}}) do
+        case List.keyfind(x_headers, "x-fedecks-device-id", 0) do
+          {_, device_id} -> authenticate_with_identity_or_token(device_id, x_headers)
+          nil -> :error
         end
       end
 
       def connect(_), do: :error
+
+      defp authenticate_with_identity_or_token(device_id, x_headers) do
+        case List.keyfind(x_headers, "x-fedecks-token", 0) do
+          {_, token} -> authenticate_with_token(device_id, token)
+          nil -> authenticate_with_identity(device_id, x_headers)
+        end
+      end
+
+      defp authenticate_with_token(device_id, token) do
+        case Token.from_token(token, token_secrets()) do
+          {:ok, ^device_id} -> {:ok, %{identifier: device_id}}
+          _ -> :error
+        end
+      end
+
+      defp authenticate_with_identity(device_id, x_headers) do
+        x_headers
+        |> Map.new()
+        |> authenticate?()
+        |> if do
+          {:ok, %{identifier: device_id}}
+        else
+          :error
+        end
+      end
 
       @impl Phoenix.Socket.Transport
       def init(%{identifier: identifier} = state) do

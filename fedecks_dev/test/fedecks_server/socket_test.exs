@@ -7,6 +7,7 @@ defmodule FedecksServer.SocketTest do
 
     @impl Socket
     def handle_incoming(:text, "no reply needed") do
+      send(self(), :noreply_message)
       :ok
     end
 
@@ -29,7 +30,12 @@ defmodule FedecksServer.SocketTest do
     end
 
     @impl Socket
-    def authenticate?(%{"username" => "marvin", "password" => "paranoid-android"}), do: true
+    def authenticate?(%{
+          "x-fedecks-username" => "marvin",
+          "x-fedecks-password" => "paranoid-android"
+        }),
+        do: true
+
     def authenticate?(_), do: false
   end
 
@@ -48,9 +54,9 @@ defmodule FedecksServer.SocketTest do
                Harness.handle_info(:refresh_token, state)
 
       assert {:ok, ^state} =
-               Harness.connect(%{
-                 params: %{"connection_token" => token, "identifier" => "nerves-987x"}
-               })
+               [{"x-fedecks-token", token}, {"x-fedecks-device-id", "nerves-987x"}]
+               |> x_headers()
+               |> Harness.connect()
     end
 
     test "does not reconnect if identifier embedded in token does not match that passed as a parameter" do
@@ -58,16 +64,16 @@ defmodule FedecksServer.SocketTest do
         Harness.handle_info(:refresh_token, %{identifier: "nerves-111a"})
 
       assert :error =
-               Harness.connect(%{
-                 params: %{"connection_token" => token, "identifier" => "sciatica-222b"}
-               })
+               [{"x-fedecks-token", token}, {"x-fedecks-device-id", "sciatica-987x"}]
+               |> x_headers()
+               |> Harness.connect()
     end
 
     test "does not reconnect if token is invalid" do
       assert :error ==
-               Harness.connect(%{
-                 params: %{"connection_token" => "hi", "identifier" => "neves-123x"}
-               })
+               [{"x-fedecks-token", "hi"}, {"x-fedecks-device-id", "nerves-987x"}]
+               |> x_headers()
+               |> Harness.connect()
     end
   end
 
@@ -104,34 +110,35 @@ defmodule FedecksServer.SocketTest do
   describe "connecting with authorisation" do
     test "when valid returns the identifier" do
       assert {:ok, %{identifier: "nerves-543x"}} =
-               Harness.connect(%{
-                 params: %{
-                   "identifier" => "nerves-543x",
-                   "username" => "marvin",
-                   "password" => "paranoid-android"
-                 }
-               })
+               [
+                 {"x-fedecks-username", "marvin"},
+                 {"x-fedecks-password", "paranoid-android"},
+                 {"x-fedecks-device-id", "nerves-543x"}
+               ]
+               |> x_headers()
+               |> Harness.connect()
     end
 
     test "when incorrect, does not connect" do
       assert :error ==
-               Harness.connect(%{
-                 params: %{
-                   "identifier" => "nerves-543x",
-                   "username" => "marvin@gpp.sirius",
-                   "password" => "plastic-pal"
-                 }
-               })
+               [
+                 {"x-fedecks-username", "marvin@gpp.sirius"},
+                 {"x-fedecks-password", "plastic-pal"},
+                 {"x-fedecks-device-id", "nerves-543x"}
+               ]
+               |> x_headers()
+               |> Harness.connect()
     end
 
     test "fails if identifier missing" do
       assert :error ==
-               Harness.connect(%{
-                 params: %{"username" => "marvin", "password" => "paranoid-android"}
-               })
+               [
+                 {"x-fedecks-username", "marvin"},
+                 {"x-fedecks-password", "paranoid-android"}
+               ]
+               |> x_headers()
+               |> Harness.connect()
     end
-
-    # when extracted - callback
   end
 
   describe "init" do
@@ -159,6 +166,8 @@ defmodule FedecksServer.SocketTest do
     test "calls `handle_incoming_message` if provided" do
       assert {:ok, %{identifier: "xyz"}} ==
                Harness.handle_in({:text, "no reply needed"}, %{identifier: "xyz"})
+
+      assert_received :noreply_message
     end
 
     test "can also reply" do
@@ -183,4 +192,6 @@ defmodule FedecksServer.SocketTest do
                BareHarness.handle_info(:ola, %{identifier: "bobby"})
     end
   end
+
+  defp x_headers(headers), do: %{connect_info: %{x_headers: headers}}
 end
