@@ -43,7 +43,8 @@ defmodule FedecksDev.MixProject do
       {:plug_cowboy, "~> 2.5"},
       {:websocket_client, git: "git@github.com:vtm9/websocket_client.git"},
       {:credo, "~> 1.6", only: :dev},
-      {:recon, "~> 2.5"}
+      {:recon, "~> 2.5"},
+      {:dialyxir, "~> 1.2", only: [:dev, :test]}
     ]
   end
 
