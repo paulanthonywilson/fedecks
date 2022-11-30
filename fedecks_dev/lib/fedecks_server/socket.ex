@@ -137,6 +137,8 @@ defmodule FedecksServer.Socket do
         end
       end
 
+      @dialyzer {:nowarn_function, handle_in: 2}
+
       @impl Phoenix.Socket.Transport
       def terminate(_reason, _state) do
         :ok
