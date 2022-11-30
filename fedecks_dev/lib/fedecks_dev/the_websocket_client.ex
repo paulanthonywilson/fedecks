@@ -6,8 +6,19 @@ defmodule FedecksDev.TheWebsocketClient do
 
   @behaviour :websocket_client_handler
 
-  def start_link(url, handler_opts \\ [], opts \\ []) do
-    :websocket_client.start_link(url, __MODULE__, handler_opts, opts)
+  def start_link(username, password) do
+    auth =
+      %{
+        "fedecks-device-id" => "my-device",
+        "username" => username,
+        "password" => password
+      }
+      |> :erlang.term_to_binary()
+      |> Base.encode64()
+
+    :websocket_client.start_link("ws://localhost:4000/fedecks/websocket", __MODULE__, [],
+      extra_headers: [{"x-fedecks-auth", auth}]
+    )
   end
 
   @impl :websocket_client_handler
@@ -17,8 +28,8 @@ defmodule FedecksDev.TheWebsocketClient do
   end
 
   @impl :websocket_client_handler
-  def websocket_handle(_msg, _conn_state, state) do
-    # IO.inspect({self(), msg, conn_state}, label: :websocket_handle)
+  def websocket_handle(msg, conn_state, state) do
+    IO.inspect({self(), msg, conn_state}, label: :websocket_handle)
     {:ok, state}
   end
 

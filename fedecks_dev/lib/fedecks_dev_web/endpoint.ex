@@ -12,11 +12,7 @@ defmodule FedecksDevWeb.Endpoint do
 
   socket "/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]]
 
-  socket "/fedecks/reconnect/:identifier/:connection_token", FedecksDevWeb.TheSocket,
-    websocket: true,
-    longpoll: false
-
-  socket "/fedecks/authorise/:identifier/:username/:password", FedecksDevWeb.TheSocket,
+  socket "/fedecks", FedecksDevWeb.TheSocket,
     websocket: [connect_info: [:x_headers]],
     longpoll: false
 
