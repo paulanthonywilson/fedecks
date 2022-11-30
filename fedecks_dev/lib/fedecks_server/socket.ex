@@ -50,6 +50,15 @@ defmodule FedecksServer.Socket do
 
   @secs_in_4_weeks 60 * 60 * 24 * 7 * 4
 
+  defmacro fedecks_socket(path \\ "/fedecks", mod) do
+    quote do
+      Phoenix.Endpoint.socket(unquote(path), unquote(mod),
+        websocket: [connect_info: [:x_headers]],
+        longpoll: false
+      )
+    end
+  end
+
   defmacro __using__(opts) do
     otp_app =
       case Keyword.get(opts, :otp_app) do

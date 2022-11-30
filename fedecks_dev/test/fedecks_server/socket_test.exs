@@ -247,6 +247,32 @@ defmodule FedecksServer.SocketTest do
     end
   end
 
+  describe "when calling `end_point_route` in the endpoint" do
+    defmodule PretendEndpoint do
+      require Socket
+      require Phoenix.Endpoint
+      Module.register_attribute(__MODULE__, :phoenix_sockets, accumulate: true)
+
+      Socket.fedecks_socket(Harness)
+      Socket.fedecks_socket("/custom", Harness)
+      def phoenix_sockets, do: @phoenix_sockets
+    end
+
+    test "with no path, sets the default Fedecks path to the socket" do
+      assert [
+               _,
+               {"/fedecks", Harness, [websocket: [connect_info: [:x_headers]], longpoll: false]}
+             ] = PretendEndpoint.phoenix_sockets()
+    end
+
+    test "can customise the socket path" do
+      assert [
+               {"/custom", Harness, [websocket: [connect_info: [:x_headers]], longpoll: false]},
+               _
+             ] = PretendEndpoint.phoenix_sockets()
+    end
+  end
+
   defp add_auth_to_headers(headers) do
     auth = headers |> :erlang.term_to_binary() |> Base.encode64()
     %{connect_info: %{x_headers: [{"x-fedecks-auth", auth}]}}
